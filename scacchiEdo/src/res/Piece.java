@@ -107,6 +107,7 @@ public class Piece {//la super-class di tutti i pezzi
             return true;
         }else{
             if(hittingP.color != this.color){
+                
                 return true;
             }else{
                 hittingP = null;
@@ -213,7 +214,7 @@ public class Piece {//la super-class di tutti i pezzi
             }
 
             //Down right
-            for(int c = preCol+1; c > targetCol; c++){
+            for(int c = preCol+1; c < targetCol; c++){
                 int diff = Math.abs(c - preCol);
                 for(Piece p : GamePanel.simPieces){
                     if(p.col == c && p.row == preRow + diff){
