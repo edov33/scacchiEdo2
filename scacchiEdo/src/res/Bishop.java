@@ -17,7 +17,6 @@ public class Bishop extends Piece {
 
     public boolean canMove(int targetCol, int targetRow){
         if(isWithinBoard(targetCol, targetRow) && isSameSquare(targetCol, targetRow) == false){
-
             if(Math.abs(targetCol - preCol) == Math.abs(targetRow - preRow)){ // il ratio deve essere sempre 1, si muove sull'ipotenusa di un triangolo
                 if(isValidSquare(targetCol, targetRow) && pieceIsOnDiagonalLine(targetCol, targetRow) == false){
                     return true;

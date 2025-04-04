@@ -50,6 +50,7 @@ public class GamePanel extends JPanel implements Runnable{
     boolean validSquare;
     boolean promotion;
     boolean gameover;
+    boolean stalemate;
 
 
     public GamePanel(){
@@ -98,10 +99,9 @@ public class GamePanel extends JPanel implements Runnable{
          pieces.add(new Bishop(Black,5,0));
          pieces.add(new Queen(Black,3,0));
          pieces.add(new King(Black,4,0));
-    }
+    }  
 
     private void copyPieces(ArrayList<Piece> source, ArrayList<Piece> target){
-    
         target.clear();
         for(int i = 0; i < source.size(); i++){
             target.add(source.get(i));
@@ -147,7 +147,7 @@ public class GamePanel extends JPanel implements Runnable{
 
         if(promotion){
             promoting();
-        }else{
+        }else if(gameover == false && stalemate == false){
             if(mouse.pressed){
                 if(activeP == null){//uguale a null vuol dire che il mouse non sta holdando un pedina di scacchi
 
@@ -176,19 +176,16 @@ public class GamePanel extends JPanel implements Runnable{
                             arroccoPiece.updatePosition();
                         }
 
-                        if(isKingInCheck()){
-                            
-                        }/*else{
+                        if(isKingInCheck() && isCheckMate()){
+                            gameover = true;
+                        }else if(isStalemate() && isKingInCheck() == false){
+                            stalemate = true;
+                        }else{//se entriamo nell'else il gioco sta ancora girando 
                             if(canPromote()){
                                 promotion = true;
                             }else{
                                 changePlayer();//dopo aver cambiato la posizione della pedina, passeremo il turno all'avversario
                             }
-                        }*/
-                        if(canPromote()){
-                            promotion = true;
-                        }else{
-                            changePlayer();//dopo aver cambiato la posizione della pedina, passeremo il turno all'avversario
                         }
                     }else{
                         //la mossa non è valida quindi  ressetto tutto
@@ -232,7 +229,7 @@ public class GamePanel extends JPanel implements Runnable{
 
             checkArrocco();
 
-            if(isIllegal(activeP) == false){
+            if(isIllegal(activeP) == false && opponentCanCaptureKing() == false){
                 validSquare = true;
             }
         }
@@ -243,17 +240,28 @@ public class GamePanel extends JPanel implements Runnable{
     private boolean isIllegal(Piece king){//metodo che associamo solo alla pedina del re 
         if(king.type == Type.KING){
             for(Piece p : simPieces){
-                if(p != king && p.color != king.color && p.canMove(king.col, king.row)){// vedo se  ci stanno pedine diveerse dal re e dal colore del mio re
+                if(p != king && p.color != king.color && p.canMove(king.col, king.row)){// vedo se  ci stanno pedine diverse dal re e dal colore del mio re
                     return true;                                                        // e vedo se una delle pedine ancora in gioco possa muoversi nelle coordinate del re e catturarlo
                 }
             }
         }
         return false;
     }//----------------------------------------------------------------
-    private boolean isKingInCheck(){
-        
-        Piece king = getKing(true);
+    private boolean opponentCanCaptureKing(){//la condizione è simili al metodo di sopra
 
+        //metodo per controllare l'illegal move di poter muovere una pedina quando abbiamo il re in check
+        Piece king = getKing(false);
+        for(Piece p : simPieces){
+            if(p.color != king.color && p.canMove(king.col, king.row)){
+                return true;
+            }
+        }
+        return false;
+    }//----------------------------------------------------------------
+    private boolean isKingInCheck(){
+
+        Piece king = getKing(true);
+ 
         if(activeP.canMove(king.col, king.row)){
             checkingP = activeP;
             return true;
@@ -336,6 +344,175 @@ public class GamePanel extends JPanel implements Runnable{
             }
         }
     }
+
+    private boolean isStalemate(){
+        int count = 0;
+
+        //conto il numero di pedine
+        for(Piece p : simPieces){
+            if(p.color != currentColor){
+                count++;
+            }
+        }
+
+        //Se il numero di pedine del colore opposto è 1(cioè c'è solo il re)
+        if(count==1){
+            if(kingCanMove(getKing(true)) == false){
+                return true;
+            }
+        }
+        
+        return false;
+
+    }
+
+    //-----------------------------------------------------------
+
+    //METODI PER IL CHECKMATE
+    //esistono tre condizioni per determinare il checkmate, e le tratteremo con questi tre metodi
+    private boolean isCheckMate(){
+
+        Piece king = getKing(true);
+
+        if(kingCanMove(king)){
+            return false;
+        }else{
+            //Pure se il re non si può muovere, vediamo se possiamo usare qualche pedina nostra per difenderci
+            
+            //controllo la posizione del pezzo che ha dato lo scacco e il pezzo del re in scacco
+            int colDiff = Math.abs(checkingP.col - king.col);
+            int rowDiff = Math.abs(checkingP.row - king.row);
+            
+            if(colDiff == 0){//Controllo se è un attacco verticale
+                
+                if(checkingP.row < king.row){//da sopra
+                    for(int row = checkingP.row ; row < king.row; row++){//controlliamo dall'alto verso il basso se ci stanno pezzi che posso bloccare il check
+                        for(Piece p : simPieces){
+                            if(p != king && p.color != currentColor && p.canMove(checkingP.col, row)){
+                                return false;
+                            }
+                        }
+                    }
+                }
+                if(checkingP.row > king.row){//da sotto
+                    for(int row = checkingP.row ; row > king.row; row--){
+                        for(Piece p : simPieces){
+                            if(p != king && p.color != currentColor && p.canMove(checkingP.col, row)){
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+            }else if(rowDiff == 0){//controllo se è un attacco orizzontale
+
+                if(checkingP.col < king.col){//da sinistra
+                    for(int col = checkingP.col ; col < king.col; col++){
+                        for(Piece p : simPieces){
+                            if(p != king && p.color != currentColor && p.canMove(col, checkingP.row)){
+                                return false;
+                            }
+                        }
+                    }
+                }
+                if(checkingP.col > king.col){//da destra
+                    for(int col = checkingP.col ; col > king.col; col--){
+                        for(Piece p : simPieces){
+                            if(p != king && p.color != currentColor && p.canMove(col, checkingP.row)){
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+            }else if(colDiff == rowDiff){//se l'attacco è diagonale
+                
+                if(checkingP.row < king.row){//diagonale ma dall'alto
+
+                    if(checkingP.col < king.col){//da in alto a sinistra
+                        for(int col = checkingP.col, row = checkingP.row ; col < king.col; col++, row++ ){
+                            for(Piece p : simPieces){
+                                if(p != king && p.color != currentColor && p.canMove(col, row)){
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    if(checkingP.col > king.col){//da in alto a destra
+                        for(int col = checkingP.col, row = checkingP.row ; col > king.col; col--, row++){
+                            for(Piece p : simPieces){
+                                if(p != king && p.color != currentColor && p.canMove(col, row)){
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                }
+                if(checkingP.row > king.row){//diagonale ma dal basso
+
+                    if(checkingP.col < king.col){//da in basso a sinistra
+                        for(int col = checkingP.col, row = checkingP.row ; col < king.col; col++, row--){
+                            for(Piece p : simPieces){
+                                if(p != king && p.color != currentColor && p.canMove(col, row)){
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    if(checkingP.col > king.col){//da in basso a destra
+                        for(int col = checkingP.col, row = checkingP.row ; col > king.col; col--, row--){
+                            for(Piece p : simPieces){
+                                if(p != king && p.color != currentColor && p.canMove(col, row)){
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }else{//se il pezzo che mette in check è un cavallo 
+                    //questo attacco non può essere fermato essendo che fa un salto
+            }
+        }
+
+
+        return true;
+    }
+    private boolean kingCanMove(Piece king){
+        
+        //Metodo per vedere se il re ha quadrati in cui andare per scappare dal check
+        if(isValidMove(king, -1, -1)){return true;}
+        if(isValidMove(king, 0, -1)){return true;}
+        if(isValidMove(king, 1, -1)){return true;}
+        if(isValidMove(king, -1, 0)){return true;}//Allla fine sono 8 i possibili quadrati in cui può andare la pedina del re
+        if(isValidMove(king, 1, 0)){return true;}
+        if(isValidMove(king, -1, 1)){return true;}
+        if(isValidMove(king, 0, 1)){return true;}
+        if(isValidMove(king, 1, 1)){return true;}
+        
+        return false;//se nessuno degli if ritorna true allora il re non si può muovere e ritorno false
+    }
+    private boolean isValidMove(Piece king, int colPlus, int rowPlus){
+        
+        boolean isValidMove = false;
+
+        //Aggiorniamo al volo la posizione del re
+        king.col += colPlus;
+        king.row += rowPlus;
+
+        if(king.canMove(king.col,  king.row)){ //negli if vediamo se il nuovo posto sia safe, e che non sia illegale
+            if(king.hittingP != null){
+                simPieces.remove(king.hittingP.getIndex());
+            }
+            if(isIllegal(king) == false){
+                isValidMove = true;
+            }
+        }
+
+        king.resetPosition();
+        copyPieces(pieces, simPieces);
+
+        return isValidMove;
+    }//--------------------------------------------------------------
     
     public void paintComponent(Graphics g){//un metodo di JComponent->e ereditata a Jpanel
         super.paintComponent(g);//il metodo paintComponent permette di disegnare oggetti nella finestra di gioco
@@ -352,7 +529,7 @@ public class GamePanel extends JPanel implements Runnable{
 
         if(activeP != null){
             if(canMove){//con questo if coloriamo di bianco solo i quadrati che possiamo raggiungere con la pedina
-                if(isIllegal(activeP)){
+                if(isIllegal(activeP) || opponentCanCaptureKing() ){
                     g2.setColor(Color.red);
                     g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.7f));
                     g2.fillRect(activeP.col*Table.SQUARE_SIZE, activeP.row*Table.SQUARE_SIZE,
@@ -401,8 +578,27 @@ public class GamePanel extends JPanel implements Runnable{
             }
         }
 
+        if(gameover){
+            String s = "";
+            if(currentColor == WHITE){
+                s = "Colonizzatori Wins";
+            }else{
+                s = "Monkey Wins";
+            }
+            g2.setFont(new Font("Arial", Font.PLAIN, 90));
+            g2.setColor(Color.green);
+            g2.drawString(s, 200, 420);
+        }
+
+        if(stalemate){
+            g2.setFont(new Font("Arial", Font.PLAIN, 90));
+            g2.setColor(Color.lightGray);
+            g2.drawString("Stalemate", 200, 420);
+        }
+
 
     }
+    
 
     
 
